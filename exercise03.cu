@@ -1,5 +1,5 @@
 #pragma warning(disable : 4996)
-#pragma diag_suppress = deprecated_entity
+#pragma nv_diag_suppress = deprecated_entity
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <stdio.h>
@@ -10,7 +10,6 @@
 #include <vector_functions.h>
 
 #include "cuda_texture_types.h"
-#include "texture_fetch_functions.hpp"
 
 #define IMAGE_DIM 2048
 #define SAMPLE_SIZE 6
