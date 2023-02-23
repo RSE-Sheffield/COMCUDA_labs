@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 	affine_decrypt_multiblock<<<blocksPerGrid, threadsPerBlock>>>(d_input, d_output);
 
 	/* wait for all threads to complete */
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 	checkCUDAError("Kernel execution");
 
 	// Ex 1.6, The additional argument is changed, in order to copy data back from the device
