@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 	//affine_decrypt(???);
 
 	/* wait for all threads to complete */
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 	checkCUDAError("Kernel execution");
 
 	/* Exercise 1.6: copy the gpu output back to the host */
