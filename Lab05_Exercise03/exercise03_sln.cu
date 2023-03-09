@@ -1,8 +1,6 @@
 #ifndef __CUDACC__
 #define __CUDACC__
 #endif
-#pragma warning(disable : 4996)
-#pragma nv_diag_suppress = deprecated_entity
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <stdio.h>
@@ -24,12 +22,6 @@
 void output_image_file(uchar4* image);
 void input_image_file(const char* filename, uchar4* image);
 void checkCUDAError(const char *msg);
-
-// Ex 3.1, (1/3) Specify a 1 dimensional texture
-texture<uchar4, cudaTextureType1D, cudaReadModeElementType> sample1D;
-// Ex 3.2, (2/3) Specify a 1 dimensional texture
-texture<uchar4, cudaTextureType2D, cudaReadModeElementType> sample2D;
-
 
 __global__ void image_blur(uchar4 *image, uchar4 *image_output) {
 	// map from threadIdx/BlockIdx to pixel position
@@ -73,7 +65,7 @@ __global__ void image_blur(uchar4 *image, uchar4 *image_output) {
 }
 
 // Ex 3.1, (2/3) tex1Dfetch() is used to access the memory stored in the texture at a given offset
-__global__ void image_blur_texture1D(uchar4 *image_output) {
+__global__ void image_blur_texture1D(cudaTextureObject_t sampler1D, uchar4 *image_output) {
 	// map from threadIdx/BlockIdx to pixel position
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
 	int y = threadIdx.y + blockIdx.y * blockDim.y;
@@ -95,16 +87,16 @@ __global__ void image_blur_texture1D(uchar4 *image_output) {
 			if (y_offset >= IMAGE_DIM)
 				y_offset -= IMAGE_DIM;
 			int offset = x_offset + y_offset * blockDim.x * gridDim.x;
-			//linear texture lookup
-			pixel = tex1Dfetch(sample1D, offset);
+			// linear texture lookup
+			pixel = tex1Dfetch<uchar4>(sampler1D, offset);
 
-			//sum values
+			// sum values
 			average.x += pixel.x;
 			average.y += pixel.y;
 			average.z += pixel.z;
 		}
 	}
-	//calculate average
+	// calculate average
 	average.x /= (float)NUMBER_OF_SAMPLES;
 	average.y /= (float)NUMBER_OF_SAMPLES;
 	average.z /= (float)NUMBER_OF_SAMPLES;
@@ -116,7 +108,7 @@ __global__ void image_blur_texture1D(uchar4 *image_output) {
 }
 
 // Ex 3.2, (2/3) tex2D() is used to access the memory stored in the texture at a given offset
-__global__ void image_blur_texture2D(uchar4 *image_output) {
+__global__ void image_blur_texture2D(cudaTextureObject_t sampler2D, uchar4 *image_output) {
 	// map from threadIdx/BlockIdx to pixel position
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
 	int y = threadIdx.y + blockIdx.y * blockDim.y;
@@ -128,16 +120,16 @@ __global__ void image_blur_texture2D(uchar4 *image_output) {
 		for (int j = -SAMPLE_SIZE; j <= SAMPLE_SIZE; j++){
 			int x_offset = x + i;
 			int y_offset = y + j;
-			//2D texture lookup
-			pixel = tex2D(sample2D, x_offset, y_offset);
+			// 2D texture lookup
+			pixel = tex2D<uchar4>(sampler2D, x_offset, y_offset);
 
-			//sum values
+			// sum values
 			average.x += pixel.x;
 			average.y += pixel.y;
 			average.z += pixel.z;
 		}
 	}
-	//calculate average
+	// calculate average
 	average.x /= (float)NUMBER_OF_SAMPLES;
 	average.y /= (float)NUMBER_OF_SAMPLES;
 	average.z /= (float)NUMBER_OF_SAMPLES;
@@ -177,12 +169,6 @@ int main(void) {
 	cudaMemcpy(d_image, h_image, image_size, cudaMemcpyHostToDevice);
 	checkCUDAError("CUDA memcpy to device");
 
-	// Ex 3.3, Set the cuda 2D texture address mode to wrapping
-	// This causes out of bounds accesses to the texture to wrap
-	// There are other options to control how out of bounds accesses to textures are handled
-	cudaChannelFormatDesc desc = cudaCreateChannelDesc<uchar4>();
-	sample2D.addressMode[0] = cudaAddressModeWrap;
-	sample2D.addressMode[1] = cudaAddressModeWrap;
 
 	//cuda layout and execution
 	dim3    blocksPerGrid(IMAGE_DIM / 16, IMAGE_DIM / 16);
@@ -190,35 +176,73 @@ int main(void) {
 
 	// normal version
 	cudaEventRecord(start, 0);
-	image_blur << <blocksPerGrid, threadsPerBlock >> >(d_image, d_image_output);
+	image_blur<<<blocksPerGrid, threadsPerBlock>>>(d_image, d_image_output);
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&ms.x, start, stop);
 	checkCUDAError("kernel normal");
+		
+	// Ex 3.1, (1/3) Describe a 1 dimensional texture object
+	cudaResourceDesc resDesc_1D;
+	memset(&resDesc_1D, 0, sizeof(cudaResourceDesc));  // Zero initialise the resource descriptor structure
+	resDesc_1D.resType = cudaResourceTypeLinear;  // Linear because it is a 1-D texture buffer
+	resDesc_1D.res.linear.devPtr = d_image;  // Pointer to the buffer in global device memory
+	resDesc_1D.res.linear.sizeInBytes = image_size;  // Size of the pointed-to buffer
+	resDesc_1D.res.linear.desc = cudaCreateChannelDesc<uchar4>();  // Data type is unsigned char[4]
 
-	// Ex 3.1, (3/3) cudaBindTexture() is used to bind the CUDA texture to the memory we allocated
-	cudaBindTexture(0, sample1D, d_image, image_size);
-	checkCUDAError("tex1D bind");
+	cudaTextureDesc texDesc_1D;
+	memset(&texDesc_1D, 0, sizeof(cudaTextureDesc));
+	texDesc_1D.readMode = cudaReadModeElementType;  //Read as actual type, other option is normalised float
+
+	// Ex 3.1, (3/3) cudaCreateTextureObject() is used to create the CUDA texture object for the memory we allocated
+	cudaTextureObject_t sampler1D = 0;
+	cudaCreateTextureObject(&sampler1D, &resDesc_1D, &texDesc_1D, NULL);
+	checkCUDAError("tex1D create");
+	
 	cudaEventRecord(start, 0);
-	image_blur_texture1D << <blocksPerGrid, threadsPerBlock >> >(d_image_output);
+	image_blur_texture1D<<<blocksPerGrid, threadsPerBlock>>>(sampler1D, d_image_output);
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&ms.y, start, stop);
-	cudaUnbindTexture(sample1D);
+	cudaDestroyTextureObject(sampler1D);
 	checkCUDAError("kernel tex1D");
 
-	// Ex 3.2, (3/3) cudaBindTexture2D() is used to bind the CUDA texture to the memory we allocated
+	// Ex 3.2, (1/3) Describe a 2 dimensional cuda array and texture object
+	cudaChannelFormatDesc channelDesc_2D = cudaCreateChannelDesc<uchar4>();  // uchar[4]
+	cudaArray_t d_image_array;
+	cudaMallocArray(&d_image_array, &channelDesc_2D, IMAGE_DIM, IMAGE_DIM);
+  // Copy data located at address d_image on device to our cuda device array
 	// There are alot more options here, to specify how the memory is laid out
 	// e.g. pitch, some image storage formats allocate memory with widths greater than the number of pixels
-	cudaBindTexture2D(0, sample2D, d_image, desc, IMAGE_DIM, IMAGE_DIM, IMAGE_DIM*sizeof(uchar4));
-	checkCUDAError("tex2D bind");
+	cudaMemcpy2DToArray(d_image_array, 0, 0, d_image, IMAGE_DIM * sizeof(uchar4), IMAGE_DIM * sizeof(uchar4), IMAGE_DIM, cudaMemcpyDeviceToDevice);
+
+	cudaResourceDesc resDesc_2D;
+	memset(&resDesc_2D, 0, sizeof(cudaResourceDesc));  // Zero initialise the resource descriptor structure
+	resDesc_2D.resType = cudaResourceTypeArray;  // Array because it's multi-dimensional
+	resDesc_2D.res.array.array = d_image_array;  // Pointer to the buffer in global device memory
+
+	cudaTextureDesc texDesc_2D;
+	memset(&texDesc_2D, 0, sizeof(cudaTextureDesc));
+	texDesc_2D.readMode = cudaReadModeElementType;  //Read as actual type, other option is normalised float
+	
+	// Ex 3.3, Set the cuda 2D texture address mode to wrapping
+	// This causes out of bounds accesses to the texture to wrap
+	// There are other options to control how out of bounds accesses to textures are handled
+	texDesc_2D.addressMode[0] = cudaAddressModeWrap;
+	texDesc_2D.addressMode[1] = cudaAddressModeWrap;
+
+	// Ex 3.2, (3/3) cudaCreateTextureObject() is used to create the CUDA texture object for the memory we allocated
+	cudaTextureObject_t sampler2D = 0;
+	cudaCreateTextureObject(&sampler2D, &resDesc_2D, &texDesc_2D, NULL);
+	checkCUDAError("tex2D create");
+
 	cudaEventRecord(start, 0);
-	image_blur_texture2D << <blocksPerGrid, threadsPerBlock >> >(d_image_output);
+	image_blur_texture2D<<<blocksPerGrid, threadsPerBlock>>>(sampler2D, d_image_output);
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	cudaEventElapsedTime(&ms.z, start, stop);
 	checkCUDAError("kernel tex2D");
-	cudaUnbindTexture(sample2D);
+	cudaDestroyTextureObject(sampler2D);
 
 
 	// copy the image back from the GPU for output to file
