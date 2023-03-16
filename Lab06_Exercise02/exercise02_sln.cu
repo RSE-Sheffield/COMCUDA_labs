@@ -141,7 +141,7 @@ int main(int argc, char **argv)
 	checkCUDAError("CUDA kernel execution and timing");
 
 	cudaEventElapsedTime(&msec, start, stop);
-	cudaThreadSynchronize();
+	cudaDeviceSynchronize();
 	checkCUDAError("CUDA timing");
 
 	// Compute the occupancy
