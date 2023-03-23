@@ -145,9 +145,9 @@ __global__ void maximumMark_shuffle_kernel(student_records *d_records, student_r
 	// shuffle down
 	// offset >>= 1, performs a single bit shift, essentially dividing by two. offset will go through 16, 8, 4, 2, 0
 	for (int offset = 16; offset > 0; offset >>= 1){
-		// _shfl_down() has implicit warp synchronisation, so __syncthreads() is not required!
-		float shuffle_mark = __shfl_down(assignment_mark, offset);
-		int shuffle_id = __shfl_down(student_id, offset);
+		// _shfl_down_sync() has implicit warp synchronisation
+		float shuffle_mark = __shfl_down_sync(0xFFFFFFFF, assignment_mark, offset);
+		int shuffle_id = __shfl_down_sync(0xFFFFFFFF, student_id, offset);
 		if (assignment_mark < shuffle_mark){
 			assignment_mark = shuffle_mark;
 			student_id = shuffle_id;
