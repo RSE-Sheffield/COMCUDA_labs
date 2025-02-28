@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define BUFFER_SIZE 32
 
@@ -21,7 +22,6 @@ int main()
 		//4.6 Extract the command and in_value using sscanf
 		if (false){ //4.7 Change condition to check command to see if it is "add"
 			sum += in_value;
-		}
 		//4.8 Add else if conditions for sub, mul and div
 		}else{
 			printf("Unknown command\n");
