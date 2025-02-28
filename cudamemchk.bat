@@ -3,7 +3,7 @@
 ::Simply call the batch file in cmd specifying the path to your executable, and any trailing arguments required
 ::e.g. cudamemchk.bat "x64\Release\Particles.exe" CUDA
 
-set compute-sanitizer="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.7\compute-sanitizer\compute-sanitizer.exe"
+set compute-sanitizer="C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6\compute-sanitizer\compute-sanitizer.exe"
 IF "%1"=="" (
     echo "Usage: %0 <executable> <run args>"
 	pause
