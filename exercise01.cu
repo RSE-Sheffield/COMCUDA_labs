@@ -8,11 +8,11 @@
 #define THREADS_PER_BLOCK 128
 
 void checkCUDAError(const char*);
-void random_ints(int *a);
+void random_floats(float *a);
 
 
 
-__global__ void vectorAdd(int *a, int *b, int *c, int max) {
+__global__ void vectorAdd(float *a, float *b, float *c, int max) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	c[i] = a[i] + b[i];
 }
@@ -20,10 +20,10 @@ __global__ void vectorAdd(int *a, int *b, int *c, int max) {
 
 
 int main(void) {
-	int *a, *b, *c, *c_ref;			// host copies of a, b, c
-	int *d_a, *d_b, *d_c;			// device copies of a, b, c
+	float *a, *b, *c, *c_ref;			// host copies of a, b, c
+	float *d_a, *d_b, *d_c;			// device copies of a, b, c
 	int errors;
-	unsigned int size = N * sizeof(int);
+	unsigned int size = N * sizeof(float);
 
 	// Alloc space for device copies of a, b, c
 	cudaMalloc((void **)&d_a, size);
@@ -32,8 +32,8 @@ int main(void) {
 	checkCUDAError("CUDA malloc");
 
 	// Alloc space for host copies of a, b, c and setup input values
-	a = (int *)malloc(size); random_ints(a);
-	b = (int *)malloc(size); random_ints(b);
+	a = (int *)malloc(size); random_floats(a);
+	b = (int *)malloc(size); random_floats(b);
 	c = (int *)malloc(size);
 	c_ref = (int *)malloc(size);
 
@@ -69,9 +69,9 @@ void checkCUDAError(const char *msg)
 	}
 }
 
-void random_ints(int *a)
+void random_floats(float *a)
 {
 	for (unsigned int i = 0; i < N; i++){
-		a[i] = rand();
+		a[i] = (float)rand()/RAND_MAX;
 	}
 }
