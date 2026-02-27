@@ -7,6 +7,8 @@
 #include <math.h>
 #include <omp.h>
 #include "mandelbrot.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 //image size
 #define WIDTH 1024
@@ -36,17 +38,6 @@ int main(int argc, char *argv[])
 	double begin, end;									//timers
 	double elapsed;										//elapsed time
 	FILE *f;											//output file handle
-
-
-	//open the output file and write header info for PPM filetype
-	f = fopen("output.ppm", "wb");
-	if (f == NULL){
-		fprintf(stderr, "Error opening 'output.ppm' output file\n");
-		exit(1);
-	}
-	fprintf(f, "P6\n");
-	fprintf(f, "# COM4521 Lab 03 Exercise02\n");
-	fprintf(f, "%d %d\n%d\n", WIDTH, HEIGHT, 255);
 
 	//start timer
 	begin = omp_get_wtime();
@@ -118,8 +109,9 @@ int main(int argc, char *argv[])
 	}
 
 	//STAGE 3) output the madlebrot to a file
-	fwrite(rgb_output, sizeof(char), sizeof(rgb_output), f);
-	fclose(f);
+	if (!stbi_write_png("output.png", WIDTH, HEIGHT, 3, rgb_output, WIDTH*3)) {
+		fprintf(stderr, "Error writing to file 'output.png'\n");
+	}
 
 	//stop timer
 	end = omp_get_wtime();
