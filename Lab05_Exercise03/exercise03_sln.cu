@@ -10,6 +10,11 @@
 #include <vector_types.h>
 #include <vector_functions.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 #include "cuda_texture_types.h"
 
 #define IMAGE_DIM 2048
@@ -163,7 +168,7 @@ int main(void) {
 
 	// allocate and load host image
 	h_image = (uchar4*)malloc(image_size);
-	input_image_file("input.ppm", h_image);
+	input_image_file("input.png", h_image);
 
 	// copy image to device memory
 	cudaMemcpy(d_image, h_image, image_size, cudaMemcpyHostToDevice);
@@ -270,56 +275,31 @@ int main(void) {
 
 void output_image_file(uchar4* image)
 {
-	FILE *f; //output file handle
-
-	//open the output file and write header info for PPM filetype
-	f = fopen("output.ppm", "wb");
-	if (f == NULL){
-		fprintf(stderr, "Error opening 'output.ppm' output file\n");
-		exit(1);
+	if (!stbi_write_png("output.png", IMAGE_DIM, IMAGE_DIM, 4, image, IMAGE_DIM * 4)) {
+		fprintf(stderr, "Error writing to file 'output.png'\n");
 	}
-	fprintf(f, "P6\n");
-	fprintf(f, "# COM4521 Lab 05 Exercise02\n");
-	fprintf(f, "%d %d\n%d\n", IMAGE_DIM, IMAGE_DIM, 255);
-	for (int x = 0; x < IMAGE_DIM; x++){
-		for (int y = 0; y < IMAGE_DIM; y++){
-			int i = x + y*IMAGE_DIM;
-			fwrite(&image[i], sizeof(unsigned char), 3, f); //only write rgb (ignoring a)
-		}
-	}
-
-	fclose(f);
 }
 
 void input_image_file(const char* filename, uchar4* image)
 {
-	FILE *f; //input file handle
-	char temp[256];
-	unsigned int x, y, s;
-
-	//open the input file and write header info for PPM filetype
-	f = fopen("input.ppm", "rb");
-	if (f == NULL){
-		fprintf(stderr, "Error opening 'input.ppm' input file\n");
-		exit(1);
+	int width = 0;
+	int height = 0;
+	int channels = 0;
+	void *data = (uchar4 *)stbi_load(filename, &width, &height, &channels, 0);
+	if (!image) {
+		fprintf(stderr, "Unable to load image '%s', please try a different file.\n", filename);
+		exit(EXIT_FAILURE);
 	}
-	fscanf(f, "%s\n", &temp);
-	fscanf(f, "%d %d\n", &x, &y);
-	fscanf(f, "%d\n", &s);
-	if ((x != y) && (x != IMAGE_DIM)){
-		fprintf(stderr, "Error: Input image file has wrong fixed dimensions\n");
-		exit(1);
+	if (channels != 4) {
+		fprintf(stderr, "Image is %d channels, must be 4, please try a different file.\n", channels);
+		exit(EXIT_FAILURE);
 	}
-
-	for (int x = 0; x < IMAGE_DIM; x++){
-		for (int y = 0; y < IMAGE_DIM; y++){
-			int i = x + y*IMAGE_DIM;
-			fread(&image[i], sizeof(unsigned char), 3, f); //only read rgb
-			//image[i].w = 255;
-		}
+	if (width != IMAGE_DIM || height != IMAGE_DIM) {
+		fprintf(stderr, "Image dimensions is %d x %d, should be %d x %d, please try a different file.\n", width, height, IMAGE_DIM, IMAGE_DIM);
+		exit(EXIT_FAILURE);
 	}
-
-	fclose(f);
+	memcpy(image, data, sizeof(char) * 4 * IMAGE_DIM * IMAGE_DIM);
+	stbi_image_free(data);
 }
 
 void checkCUDAError(const char *msg)
