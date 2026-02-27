@@ -9,6 +9,8 @@
 #include <vector_functions.h>
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
 
 #define IMAGE_DIM 2048
 #define MAX_SPHERES 16
@@ -151,25 +153,9 @@ int main(void) {
 
 void output_image_file(uchar4* image)
 {
-	FILE *f; //output file handle
-
-	//open the output file and write header info for PPM filetype
-	f = fopen("output.ppm", "wb");
-	if (f == NULL){
-		fprintf(stderr, "Error opening 'output.ppm' output file\n");
-		exit(1);
+	if (!stbi_write_png("output.png", IMAGE_DIM, IMAGE_DIM, 4, image, IMAGE_DIM * 4)) {
+		fprintf(stderr, "Error writing to file 'output.png'\n");
 	}
-	fprintf(f, "P6\n");
-	fprintf(f, "# COM4521 Lab 05 Exercise02\n");
-	fprintf(f, "%d %d\n%d\n", IMAGE_DIM, IMAGE_DIM, 255);
-	for (int x = 0; x < IMAGE_DIM; x++){
-		for (int y = 0; y < IMAGE_DIM; y++){
-			int i = x + y*IMAGE_DIM;
-			fwrite(&image[i], sizeof(unsigned char), 3, f); //only write rgb (ignoring a)
-		}
-	}
-	
-	fclose(f);
 }
 
 void checkCUDAError(const char *msg)
