@@ -92,6 +92,10 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <CudaCompile Include="exercise03_sln.cu" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stb_image.h" />
+    <ClInclude Include="stb_image_write.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 12.6.targets" />
