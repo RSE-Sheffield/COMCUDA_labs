@@ -35,7 +35,7 @@ int main(void) {
 	a = (float *)malloc(size); random_floats(a);
 	b = (float *)malloc(size); random_floats(b);
 	c = (float *)malloc(size);
-	c_ref = (int *)malloc(size);
+	c_ref = (float *)malloc(size);
 
 	// Copy inputs to device
 	cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice);
