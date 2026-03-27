@@ -32,9 +32,9 @@ int main(void) {
 	checkCUDAError("CUDA malloc");
 
 	// Alloc space for host copies of a, b, c and setup input values
-	a = (int *)malloc(size); random_floats(a);
-	b = (int *)malloc(size); random_floats(b);
-	c = (int *)malloc(size);
+	a = (float *)malloc(size); random_floats(a);
+	b = (float *)malloc(size); random_floats(b);
+	c = (float *)malloc(size);
 	c_ref = (int *)malloc(size);
 
 	// Copy inputs to device
